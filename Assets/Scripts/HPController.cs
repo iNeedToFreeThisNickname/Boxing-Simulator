@@ -24,6 +24,8 @@ public class HPController : MonoBehaviour
     [Header("Game Controlling Fiedlds")]
     [SerializeField] TMPro.TextMeshProUGUI result;
     [SerializeField] CanvasGroup restartButton;
+    [SerializeField] CanvasGroup nextLevelButton;
+    [SerializeField] LevelController levelController;
     
     [Range(0.0f, 1.0f)] public float resurrectionChance;
     [Range(0.0f, 1.0f)] public float hpAmountAfterKO;
@@ -53,7 +55,25 @@ public class HPController : MonoBehaviour
             }
         }
 
-        public void RefreshGame() {
+        /// <summary>
+        /// Game refresh based on isNextLevel ? Refresh and increse level : refresh and discard level progress
+        /// </summary>
+        /// <param name="isNextLevel"></param>
+        public void RefreshGame(bool isNextLevel) {
+            if (isNextLevel) {
+                levelController.IncreaseLevel();
+                RefreshStates();
+                return;
+            }
+
+            levelController.RefreshLevels();
+            RefreshStates();
+        }
+    #endregion
+
+    #region Private Methods
+
+        private void RefreshStates() {
             playerHP.value = 1;
             opponentHP.value = 1;
             
@@ -61,10 +81,8 @@ public class HPController : MonoBehaviour
             RefreshUI();
             opponent.RestartFighting();
             player.HandleBothHands(true);
+            HandleHeadStarsAnimation(false);
         }
-    #endregion
-
-    #region Private Methods
 
         private IEnumerator HandleHP(Boxers pureGuy, UnityEngine.UI.Slider whoWasPunched, float receivedPunchDamage) {
             whoWasPunched.value -= receivedPunchDamage;
@@ -88,7 +106,7 @@ public class HPController : MonoBehaviour
                 countDownTMP.SetText(timerState.ToString());
                 
                 if (timeSpot == timerState && forWho == Boxers.Opponent) {
-                    if (StandUpAfterKO()) {
+                    if (StandUpAfterKO(forWho)) {
                         RefreshFighter(forWho);
                     }
                 }
@@ -100,24 +118,55 @@ public class HPController : MonoBehaviour
             timerState = 0;
         }
 
-        private bool StandUpAfterKO() {
+        private bool StandUpAfterKO(Boxers knockedBoxer) {
             float chance = (float)rnd.Next(0, 100) / 100;
-            Debug.Log(chance);
+            switch(knockedBoxer) {
+                case Boxers.Player: {
+                    return false; // Here u can implement player chance to stand up
+                }
+                case Boxers.Opponent: {
+                    return opponent.standUpChance > chance;
+                }
+            }
 
-            return chance > resurrectionChance;
+            return resurrectionChance > chance;
         }
 
         private void CallEndGame(Boxers looser) {
             result.GetComponent<CanvasGroup>().DOFade(1, 1f);
-            restartButton.DOFade(1, 1f).OnComplete(() => {
-                restartButton.interactable = true;
-                restartButton.blocksRaycasts = true;
-            });
             result.SetText(looser.ToString() + " Lost!" );
+
             if (looser == Boxers.Opponent) {
                 gameAudio.PlayOneShot(winSound);
+                CheckEndGameScenario(false);
             } else {
                 gameAudio.PlayOneShot(looseSound);
+                CheckEndGameScenario(true);
+            }
+        }
+
+        private void CheckEndGameScenario(bool playerLost) {
+            if (playerLost) {
+                restartButton.DOFade(1, 1f).OnComplete(() => {
+                    restartButton.interactable = true;
+                    restartButton.blocksRaycasts = true;
+                });
+            } else {
+                CheckAvaiableLevelIncrease();
+            }
+        }
+
+        private void CheckAvaiableLevelIncrease() {
+            if (levelController.IsThereMoreLevels()) {
+                nextLevelButton.DOFade(1, 1f).OnComplete(() => {
+                    nextLevelButton.interactable = true;
+                    nextLevelButton.blocksRaycasts = true;
+                });
+            } else {
+                restartButton.DOFade(1, 1f).OnComplete(() => {
+                    restartButton.interactable = true;
+                    restartButton.blocksRaycasts = true;
+                });
             }
         }
 
@@ -159,9 +208,14 @@ public class HPController : MonoBehaviour
 
         private void RefreshUI() {
             result.GetComponent<CanvasGroup>().DOFade(0, 1f);
+            
             restartButton.DOFade(0, 1f).OnComplete(() => {
                 restartButton.interactable = false;
                 restartButton.blocksRaycasts = false;
+            });
+            nextLevelButton.DOFade(0, 1f).OnComplete(() => {
+                nextLevelButton.interactable = false;
+                nextLevelButton.blocksRaycasts = false;
             });
 
             HandleCountDownUI(false);

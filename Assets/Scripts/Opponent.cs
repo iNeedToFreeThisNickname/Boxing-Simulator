@@ -13,6 +13,7 @@ public class Opponent : MonoBehaviour, IBoxer
     [SerializeField] AnimationClip punchingAnimation;
     [SerializeField] AudioSource punchASource;
     public float punchDamage = 0.15f;
+    [Range(0.1f, 0.7f)] public float standUpChance;
     public int minPunchDuration, maxPunchDuration;
     public int minBlockDuration, maxBlockDuration;
     public Coroutine fightCoroutine;
@@ -72,6 +73,11 @@ public class Opponent : MonoBehaviour, IBoxer
 
         public void RestartFighting() {
             StartCoroutine(AutoBlock());
+        }
+
+        public void ChangeCharacteristics(float newDamage, float newStandUpChance) {
+            punchDamage = newDamage;
+            standUpChance = newStandUpChance;
         }
 
     #endregion
